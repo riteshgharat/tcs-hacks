@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Guardrail Tester</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f1419;
+        --panel: #161c24;
+        --border: #2a3441;
+        --fg: #e8edf2;
+        --muted: #9aa4b2;
+        --accent: #5b8def;
+        --ok: #3dd68c;
+        --bad: #ff5c5c;
+        --warn: #f5c451;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        width: 340px;
+        font: 13px/1.45 ui-sans-serif, system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+      }
+      header {
+        padding: 14px 14px 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      header h1 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      header p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      section {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      section:last-child { border-bottom: none; }
+      .label {
+        display: block;
+        font-size: 10px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 6px;
+        font-weight: 600;
+      }
+      .disclosure {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .disclosure strong { color: var(--fg); display: block; margin-bottom: 4px; }
+      input[type="url"], input[type="text"] {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--fg);
+        font: inherit;
+      }
+      input:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .row label { color: var(--fg); font-size: 12px; }
+      .health {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+        flex-shrink: 0;
+      }
+      .dot.ok { background: var(--ok); }
+      .dot.bad { background: var(--bad); }
+      .dot.warn { background: var(--warn); }
+      .actions { display: flex; gap: 8px; margin-top: 10px; }
+      button {
+        appearance: none;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--fg);
+        border-radius: 6px;
+        padding: 7px 12px;
+        font: inherit;
+        font-weight: 600;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      button.primary {
+        background: var(--accent);
+        border-color: transparent;
+        color: #fff;
+      }
+      button:hover { filter: brightness(1.08); }
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .hint { margin-top: 8px; font-size: 11px; color: var(--muted); }
+      .limitations {
+        font-size: 11px;
+        color: var(--muted);
+        margin: 0;
+        padding-left: 16px;
+      }
+      .limitations li { margin-bottom: 4px; }
+      .status-msg { margin-top: 6px; font-size: 11px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Guardrail Tester</h1>
+      <p>Passive evaluation for ChatGPT responses</p>
+    </header>
+
+    <section>
+      <span class="label">Privacy</span>
+      <div class="disclosure">
+        <strong>What this extension sends</strong>
+        For each new chatbot response, this extension sends only the user's
+        prompt and the chatbot's response to your configured Guardrail Engine
+        (default: localhost). It does not send full page content, browsing
+        history, cookies, or other tabs. It does not store conversations — only
+        the verdict summary is saved by the engine.
+      </div>
+    </section>
+
+    <section>
+      <label class="label" for="backendUrl">Backend URL</label>
+      <input id="backendUrl" type="url" placeholder="http://localhost:8787" spellcheck="false" />
+      <div class="actions">
+        <button type="button" class="primary" id="saveBtn">Save</button>
+        <button type="button" id="healthBtn">Check health</button>
+      </div>
+      <div class="status-msg" id="saveStatus" hidden></div>
+    </section>
+
+    <section>
+      <span class="label">Engine status</span>
+      <div class="health">
+        <span class="dot" id="healthDot" aria-hidden="true"></span>
+        <span id="healthText">Checking…</span>
+      </div>
+      <div class="hint" id="healthDetail"></div>
+    </section>
+
+    <section>
+      <span class="label">Settings</span>
+      <div class="row">
+        <label for="compactMode">Compact mode (score only)</label>
+        <input id="compactMode" type="checkbox" />
+      </div>
+      <div class="row">
+        <label for="showSaferRewrite">Show safer rewrite</label>
+        <input id="showSaferRewrite" type="checkbox" checked />
+      </div>
+    </section>
+
+    <section>
+      <span class="label">Known limitations</span>
+      <ul class="limitations">
+        <li>DOM scraping breaks if ChatGPT redesigns its UI.</li>
+        <li>MVP is flag-and-suggest, not block-and-intercept.</li>
+        <li>ChatGPT only for now; Gemini/DeepSeek are stubs.</li>
+        <li>Requires a running Guardrail Engine backend.</li>
+      </ul>
+    </section>
+
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>
